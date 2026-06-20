@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Avoca CS Team — Client Call Hours</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: #0d0f1a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #13162b;
+      border-bottom: 1px solid #252847;
+      padding: 20px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .header-title { font-size: 1.35rem; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+    .header-meta  { font-size: 0.8rem; color: #7880a0; margin-top: 5px; }
+    .header-badge {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 20px;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    /* ── Main layout ── */
+    .main { padding: 28px 36px; max-width: 1440px; margin: 0 auto; }
+
+    /* ── Summary cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .card {
+      background: #13162b;
+      border: 1px solid #252847;
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+    .card-label { font-size: 0.7rem; font-weight: 600; color: #7880a0; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+    .card-value { font-size: 2rem; font-weight: 700; color: #fff; letter-spacing: -0.03em; }
+    .card-value span { font-size: 1rem; color: #7880a0; font-weight: 400; }
+    .card-sub { font-size: 0.75rem; color: #7880a0; margin-top: 5px; }
+
+    /* ── Sections ── */
+    .section {
+      background: #13162b;
+      border: 1px solid #252847;
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .section-title { font-size: 0.72rem; font-weight: 600; color: #7880a0; text-transform: uppercase; letter-spacing: 0.1em; }
+
+    /* ── Chart ── */
+    .chart-wrap { position: relative; height: 720px; }
+
+    /* ── Filter buttons ── */
+    .filter-group { display: flex; gap: 8px; }
+    .fbtn {
+      background: #1c2040;
+      border: 1px solid #2d3260;
+      color: #a0aac0;
+      padding: 5px 14px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .fbtn.active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+    .fbtn:not(.active):hover { background: #252847; color: #e2e8f0; }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #7880a0;
+      padding: 10px 16px;
+      border-bottom: 1px solid #252847;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      transition: color 0.15s;
+    }
+    thead th:hover { color: #e2e8f0; }
+    thead th.asc::after  { content: ' ↑'; color: #6366f1; }
+    thead th.desc::after { content: ' ↓'; color: #6366f1; }
+    tbody tr { border-bottom: 1px solid #1a1d35; transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #1a1d35; }
+    tbody td { padding: 11px 16px; font-size: 0.875rem; vertical-align: middle; }
+
+    .name-col { font-weight: 500; color: #e2e8f0; }
+    .num-col { font-variant-numeric: tabular-nums; }
+    .num-high { color: #68d391; }
+    .num-med  { color: #90cdf4; }
+    .num-low  { color: #b794f4; }
+    .num-zero { color: #374060; }
+    .total-col { font-weight: 600; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+
+    .warn-icon {
+      display: inline-block;
+      font-size: 0.8em;
+      margin-left: 4px;
+      cursor: help;
+      vertical-align: middle;
+    }
+
+    /* ── Footnote ── */
+    .footnote {
+      margin-top: 18px;
+      padding: 14px 18px;
+      background: #1a1620;
+      border: 1px solid #3d2f1a;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      color: #9a8a70;
+      line-height: 1.7;
+    }
+    .footnote strong { color: #f6ad55; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .cards { grid-template-columns: repeat(2, 1fr); }
+      .chart-wrap { height: 900px; }
+      .main { padding: 16px; }
+      header { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">Avoca CS Team — Client Call Hours</div>
+    <div class="header-meta">May 25 – Jun 14, 2026 &nbsp;·&nbsp; External calls only (non-avoca.ai participants) &nbsp;·&nbsp; Source: Attention</div>
+  </div>
+  <span class="header-badge">3-WEEK REPORT</span>
+</header>
+
+<div class="main">
+
+  <!-- Summary cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">W1 Team Total</div>
+      <div class="card-value">123.8<span>h</span></div>
+      <div class="card-sub">May 25 – 31</div>
+    </div>
+    <div class="card">
+      <div class="card-label">W2 Team Total</div>
+      <div class="card-value">134.4<span>h</span></div>
+      <div class="card-sub">Jun 1 – 7</div>
+    </div>
+    <div class="card">
+      <div class="card-label">W3 Team Total</div>
+      <div class="card-value">143.8<span>h</span></div>
+      <div class="card-sub">Jun 8 – 14</div>
+    </div>
+    <div class="card">
+      <div class="card-label">3-Week Total</div>
+      <div class="card-value">402.0<span>h</span></div>
+      <div class="card-sub">29 team members</div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Hours per person per week — sorted by total (desc)</div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="barChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Detail — click any column header to sort</div>
+      <div class="filter-group">
+        <button class="fbtn active" id="btnAll"    onclick="setFilter('all')">All 29</button>
+        <button class="fbtn"        id="btnActive" onclick="setFilter('active')">Active only</button>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('name')">Name</th>
+          <th onclick="sortBy('w1')">W1 &nbsp;May 25–31</th>
+          <th onclick="sortBy('w2')">W2 &nbsp;Jun 1–7</th>
+          <th onclick="sortBy('w3')">W3 &nbsp;Jun 8–14</th>
+          <th onclick="sortBy('total')">3-Wk Total</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <div class="footnote">
+      <strong>⚠️ Possible recording artifacts</strong> — Clyde W3 includes a 420-min call on Jun 11 (likely not a real client call of that length); Matt Dumon W1 includes a 436-min call on May 28. Actual client-facing hours for those cells may be significantly lower. All other data reflects the sum of external-participant calls pulled from Attention for the stated date range.
+    </div>
+  </div>
+
+</div><!-- /.main -->
+
+<script>
+// ─────────────────────────────────────────────
+// DATA  [name, w1_min, w2_min, w3_min, warn_w1, warn_w2, warn_w3]
+// ─────────────────────────────────────────────
+const RAW = [
+  ["Drew",          325,  418,  252, false, false, false],
+  ["Sissi",         296,  281,  287, false, false, false],
+  ["Jack",            0,  222,  481, false, false, false],
+  ["Isaac",         452,  641,  368, false, false, false],
+  ["Jordan",         45,   32,    1, false, false, false],
+  ["Jillian",       462,  271,  558, false, false, false],
+  ["Rachel",        443,  470,  469, false, false, false],
+  ["Nina",          184,  657,  602, false, false, false],
+  ["Annie",         335,  289,  234, false, false, false],
+  ["Tina",          568,  607,  661, false, false, false],
+  ["Zach",          215,    0,  473, false, false, false],
+  ["Valeria",       493,  550,  236, false, false, false],
+  ["Jack Muccia",   378,  407,  536, false, false, false],
+  ["Coby",          442,  326,  355, false, false, false],
+  ["Ivan",          518,  460,  686, false, false, false],
+  ["Kaitlin",        53,  342,  258, false, false, false],
+  ["Isadora",       188,  156,  376, false, false, false],
+  ["Kyle",            0,  131,  174, false, false, false],
+  ["Brit",            0,    0,    0, false, false, false],
+  ["Kiana",           0,    0,    0, false, false, false],
+  ["Cattien",         0,    0,    0, false, false, false],
+  ["Otto",            0,    0,    0, false, false, false],
+  ["Aditya",          0,    0,    0, false, false, false],
+  ["Quintin",         0,    0,    0, false, false, false],
+  ["Maggie",          0,    0,    0, false, false, false],
+  ["Jose Navarro",    0,    0,    0, false, false, false],
+  ["Matt Spencer",  434,  496,  359, false, false, false],
+  ["Clyde",         802,  564,  809, false, false, true ],
+  ["Matt Dumon",    798,  742,  452, true,  false, false],
+];
+
+const toH   = m => m / 60;
+const fmt   = v => v.toFixed(2) + 'h';
+
+// ─────────────────────────────────────────────
+// BAR CHART
+// ─────────────────────────────────────────────
+const chartSorted = [...RAW].sort((a, b) => (b[1]+b[2]+b[3]) - (a[1]+a[2]+a[3]));
+const chartLabels = chartSorted.map(d => d[0]);
+const ds = (idx, color, label) => ({
+  label,
+  data: chartSorted.map(d => parseFloat(toH(d[idx]).toFixed(2))),
+  backgroundColor: color,
+  borderRadius: 3,
+  borderSkipped: false,
+});
+
+new Chart(document.getElementById('barChart').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: chartLabels,
+    datasets: [
+      ds(1, 'rgba(99,102,241,0.85)',  'W1 May 25–31'),
+      ds(2, 'rgba(16,185,129,0.85)',  'W2 Jun 1–7'),
+      ds(3, 'rgba(245,158,11,0.85)', 'W3 Jun 8–14'),
+    ]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { color: '#a0aac0', font: { size: 12 }, padding: 20, usePointStyle: true }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.x.toFixed(2)}h`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: 'rgba(37,40,71,0.8)' },
+        ticks: { color: '#7880a0', callback: v => v + 'h' },
+        border: { color: '#252847' }
+      },
+      y: {
+        grid: { color: 'rgba(37,40,71,0.4)' },
+        ticks: { color: '#c0c8e0', font: { size: 11.5 } },
+        border: { color: '#252847' }
+      }
+    }
+  }
+});
+
+// ─────────────────────────────────────────────
+// TABLE
+// ─────────────────────────────────────────────
+let filterMode = 'all';
+let sortKey    = 'total';
+let sortDir    = -1;  // -1 = desc, 1 = asc
+
+const thEls = document.querySelectorAll('thead th');
+
+function setFilter(mode) {
+  filterMode = mode;
+  document.getElementById('btnAll').classList.toggle('active', mode === 'all');
+  document.getElementById('btnActive').classList.toggle('active', mode === 'active');
+  render();
+}
+
+function sortBy(key) {
+  if (sortKey === key) {
+    sortDir *= -1;
+  } else {
+    sortKey = key;
+    sortDir = key === 'name' ? 1 : -1;
+  }
+  thEls.forEach(th => { th.classList.remove('asc', 'desc'); });
+  const idx = ['name','w1','w2','w3','total'].indexOf(key);
+  if (idx >= 0) thEls[idx].classList.add(sortDir === 1 ? 'asc' : 'desc');
+  render();
+}
+
+function numColor(h, total3w) {
+  if (h === 0) return 'num-zero';
+  const share = h / (total3w / 3);  // vs per-week average
+  if (share >= 1.2) return 'num-high';
+  if (share >= 0.6) return 'num-med';
+  return 'num-low';
+}
+
+function render() {
+  let data = [...RAW];
+  if (filterMode === 'active') data = data.filter(d => d[1]+d[2]+d[3] > 0);
+
+  data.sort((a, b) => {
+    if (sortKey === 'name')  return sortDir * a[0].localeCompare(b[0]);
+    if (sortKey === 'w1')    return sortDir * (a[1] - b[1]);
+    if (sortKey === 'w2')    return sortDir * (a[2] - b[2]);
+    if (sortKey === 'w3')    return sortDir * (a[3] - b[3]);
+    /* total */              return sortDir * ((a[1]+a[2]+a[3]) - (b[1]+b[2]+b[3]));
+  });
+
+  const makeCell = (min, warn, total) => {
+    const h = toH(min);
+    const cls = numColor(h, toH(total));
+    const warnHtml = warn
+      ? `<span class="warn-icon" title="Likely recording artifact — includes a 7+ hour call. Actual client-facing time may be lower.">⚠️</span>`
+      : '';
+    return `<td class="num-col ${cls}">${h === 0 ? '—' : fmt(h)}${warnHtml}</td>`;
+  };
+
+  document.getElementById('tbody').innerHTML = data.map(d => {
+    const [name, w1, w2, w3, wr1, wr2, wr3] = d;
+    const total = w1 + w2 + w3;
+    return `<tr>
+      <td class="name-col">${name}</td>
+      ${makeCell(w1, wr1, total)}
+      ${makeCell(w2, wr2, total)}
+      ${makeCell(w3, wr3, total)}
+      <td class="total-col">${total === 0 ? '—' : fmt(toH(total))}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Initial render — sort by total desc
+thEls[4].classList.add('desc');
+render();
+</script>
+</body>
+</html>

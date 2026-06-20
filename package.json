@@ -1,0 +1,11 @@
+{
+  "name": "avoca-call-hours",
+  "version": "1.0.0",
+  "description": "Avoca CS Team — Client Call Hours Dashboard",
+  "scripts": {
+    "start": "serve -s . -p ${PORT:-3000}"
+  },
+  "dependencies": {
+    "serve": "^14.2.3"
+  }
+}
